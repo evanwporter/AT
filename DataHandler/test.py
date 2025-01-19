@@ -1,1 +1,0 @@
-from AT import settings
