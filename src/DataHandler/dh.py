@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
 
 import numpy as np
+import pandas as pd
 
-import settings
+import settings as settings
 
 import datetime as dt
 
@@ -14,15 +15,27 @@ from DataHandler.symbol import Symbol
 
 
 class DataHandler(ABC):
+
+    latest_symbol_data: dict[Symbol, pd.DataFrame | None]
+    symbols: dict[Symbol, dict[str, str]]
+    dates: pd.Index
+    size: int
+
     def __init__(self):
         self.symbols = settings.SYMBOLS
 
-    def get_latest_data(self, symbol: Symbol, columns="Close", N=-1, dtype=None):
+    def get_latest_data(
+        self,
+        symbol: Symbol,
+        columns: str | list[str] = "Close",
+        N: int = -1,
+        dtype=None,
+    ):
 
         if not isinstance(symbol, Symbol):
             raise TypeError("%s must be type Symbol" % symbol)
 
-        data_interval = self.symbols[symbol]["Timeframe"]["Data Interval"]
+        data_interval = self.symbols[symbol]["Data Interval"]
 
         if type(N) is dt.timedelta:
             if N < data_interval:
@@ -36,7 +49,12 @@ class DataHandler(ABC):
                 "get_latest_data parameter 'columns' must be of type list or str"
             )
 
-        data = self.latest_symbol_data[symbol][-N:]  # , dtype=object)
+        latest_data = self.latest_symbol_data.get(symbol)
+        if latest_data is None:
+            logging.warning(f"No data available for symbol {symbol}")
+            return None
+
+        data = latest_data[-N:]
 
         if type(columns) == str:
             data = data[columns]  # self.symbols[symbol]["Columns"][columns]]
@@ -45,15 +63,9 @@ class DataHandler(ABC):
 
         else:
             if dtype is not None:
-                return [
-                    data[:, self.symbols[symbol]["Columns"][columns]].astype(dtype)
-                    for column in columns
-                ]
+                return [data[:, column].astype(dtype) for column in columns]
             else:
-                return [
-                    data[:, self.symbols[symbol]["Columns"][columns]]
-                    for column in columns
-                ]
+                return [data[:, column] for column in columns]
 
         if dtype is not None:
             return data.astype(dtype)

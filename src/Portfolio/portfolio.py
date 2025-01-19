@@ -1,4 +1,4 @@
-from Portfolio.position import Position
+from .position import Position
 
 # from .trade import Trade
 
@@ -16,6 +16,7 @@ import helper as h
 # from decimal import Decimal
 
 import settings as settings
+from DataHandler import DataHandler, Symbol
 
 import logging
 
@@ -27,37 +28,38 @@ import logging
 # For XRPBTC, the asset would still have to be measured in USD
 # So XRPUSD and BTCUSD
 class Portfolio:
-    def __init__(self, dh):
+    dh: DataHandler
+    positions: dict[Symbol, Position]
+
+    def __init__(self, dh: DataHandler):
         self.dh = dh
 
-        self.positions = {symbol: Position(symbol) for symbol in self.dh.split_symbols}
-        self.positions["Binance-USDT"].quantity = settings.INITIAL_CASH
+        self.positions = {symbol: Position(symbol) for symbol in self.dh.symbols.keys()}
+        self.positions["USD"] = Position("USD")
+        self.positions["USD"].quantity = D(settings.INITIAL_CASH)
 
         # Double Ended Queue
         self.holdings = deque()
 
         self.trades: dict = defaultdict(deque)
-        self.closed_trades: list = deque()
+        self.closed_trades: deque = deque()
 
-        self.weights = {symbol: 0 for symbol in self.dh.split_symbols}
-        self.weights["Binance-USDT"] = 100
+        self.weights = {symbol: 0 for symbol in self.dh.symbols.keys()}
+        self.weights["USD"] = 100
 
     def update_value(self, symbols, edit=False):
 
+        date = self.dh.date
+
         holding = {}
+        holding["USD Value"] = self.positions["USD"].update_value(D(1.0), date)
+
         for symbol in symbols:
-            # type(symbol) = Symbol()
-            # Loops through base and asset
-            for s in symbol:
+            price = self.dh.get_latest_data(symbol, "Close")
 
-                if h.is_cash_like(s):
-                    price = D(1.0)
-                else:
-                    price = self.dh.get_latest_data(symbol, "Close")
-
-                date = self.dh.date
-
-                holding["%s Value" % s] = self.positions[s].update_value(price, date)
+            holding["%s Value" % symbol] = self.positions[symbol].update_value(
+                price, date
+            )
 
         holding_array = np.array(list(holding.values()))
         holding["Assets"] = np.sum(holding_array[holding_array > 0])
@@ -67,17 +69,13 @@ class Portfolio:
         # Update weights
         for symbol in symbols:
 
-            base = symbol.base
-
-            self.weights["Binance-USDT"] = (
-                holding["Binance-USDT Value"] * 100
-            ) / holding["Total Equity"]
-            if self.positions[base].market_value != 0:
-                self.weights[base] = (holding["%s Value" % base] * 100) / holding[
+            self.weights["USD"] = (holding["USD Value"] * 100) / holding["Total Equity"]
+            if self.positions[symbol].market_value != 0:
+                self.weights[symbol] = (holding["%s Value" % symbol] * 100) / holding[
                     "Total Equity"
                 ]
             else:
-                self.weights[base] = 0
+                self.weights[symbol] = 0
 
         # Debt-to-Equity ratio
         holding["Leverage"] = holding["Assets"] / holding["Total Equity"]
@@ -104,7 +102,7 @@ class Portfolio:
         price,
         fill_type,
         slippage=None,
-        commission=None,
+        commission=D("0.0"),
         stop_loss=None,
     ):
 
@@ -113,14 +111,14 @@ class Portfolio:
 
         # Buy/Long means increase `Base Asset` and decrease `Quote Asset`
         if direction == trade_type.LONG or direction == trade_type.BUY:
-            self.positions[symbol.base].update_position(
+            self.positions[symbol].update_position(
                 quantity=quantity,
                 price=price,
                 direction=direction,
                 side=asset_side.BASE,
                 slippage=slippage,
             )
-            self.positions[symbol.quote].update_position(
+            self.positions["USD"].update_position(
                 quantity=quantity,
                 price=price,
                 direction=direction,
@@ -131,14 +129,14 @@ class Portfolio:
 
         # Sell/Short means decrease `Base Asset` and increase `Quote Asset`
         else:  # direction == trade_type.SHORT or direction == trade_type.SELL:
-            self.positions[symbol.base].update_position(
+            self.positions[symbol].update_position(
                 quantity=quantity,
                 price=price,
                 direction=direction,
                 side=asset_side.BASE,
                 slippage=slippage,
             )
-            self.positions[symbol.quote].update_position(
+            self.positions["USD"].update_position(
                 quantity=quantity,
                 price=price,
                 direction=direction,

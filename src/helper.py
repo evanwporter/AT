@@ -1,12 +1,12 @@
 import uuid
 import enums
-import exceptions
 import arrow
 import os
-import settings
+import settings as settings
 import datetime as dt
 import pandas as pd
 import numpy as np
+import exceptions
 
 
 def interval_to_ms(interval: str):
@@ -75,7 +75,7 @@ def verify_routes(routes):
             "8h",
             "1D",
         ]:
-            raise Exceptions.InvalidRoutes(
+            raise exceptions.InvalidRoute(
                 'Timeframe "{}" is invalid. Supported timeframes are 1m, 3m, 5m, 15m, 30m, 1h, 2h, 3h, 4h, 6h, 8h, 1D'.format(
                     timeframe
                 )
@@ -133,10 +133,12 @@ def key(*args, **kwargs):
         return "{}-{}{}".format(kwargs["source"], kwargs["base"], kwargs["quote"])
     return "{}{}".format(kwargs["base"], kwargs["quote"])
 
+
 def split_symbol(symbol):
     return symbol.split("-")
 
-def is_cash_like(symbol):
+
+def is_cash_like(symbol: str) -> bool:
     symbols = [
         "USDT",
         "USD",

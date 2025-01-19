@@ -1,7 +1,7 @@
 from .fee import FeeModel
 from enums import exchanges, places
 
-import settings
+import settings as settings
 
 from decimal import Decimal as D
 

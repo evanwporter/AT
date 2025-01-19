@@ -1,22 +1,22 @@
 # Historic Data Handler
+import os
 import pandas as pd
 import numpy as np
+import logging
+import json
 
 from decimal import Decimal as D
 
-from collections import OrderedDict, defaultdict
-
-import json
+from collections import OrderedDict
 
 from DataHandler.event import *
 from DataHandler.dh import DataHandler
-from DataHandler.symbol import Symbol
+from .symbol import Symbol
 
 import helper as h
 
 import exceptions as exceptions
 import settings as settings
-from symbols import symbols as syms
 
 from datetime import timedelta
 
@@ -26,9 +26,6 @@ class HistoricDataHandler(DataHandler):
     def __init__(self):
 
         # store = pystore.store(settings.DATA_DIRECTORY)
-
-        with open(r".\AT\symbol_info.json") as info:
-            self.symbol_info = json.load(info)
 
         # -----------
         # | Private |
@@ -44,50 +41,27 @@ class HistoricDataHandler(DataHandler):
         # The guide tells you in which row to find Open, Close, High, Low, ect.
         # Also it has information on the intervals
         # This information is pulled from the symbols file in the main package.
-        self.symbols = {
-            Symbol(*self._split_symbol(symbol, source)): syms[source][symbol]
-            for source, symbols in settings.SYMBOLS.items()
-            for symbol in symbols
-        }
+        self.symbols: dict[Symbol, dict[str, str]] = settings.SYMBOLS
 
-        self.exchanges = set([symbol.source for symbol in self.symbols])
+        logging.info("Trading %s." % self.symbols)
 
-        # This will be changed in the future.
-        if len(self.exchanges) > 1:
-            raise ValueError(
-                "To many exchanges. At the moment we can only trade on one exhange"
-            )
-
-        logging.info("Trading on %s." % self.exchanges)
-
-        logging.info("Trading %s." % self.symbols.items())
-
-        # Unique values
-        # ie: (USDT, BTC, XRP) if trading with BTCUSDT & XRPUSDT
-        self.split_symbols = set(
-            # TODO: Create a subclass of the symbol class for this
-            s
-            for symbol in self.symbols
-            for s in symbol
-        )
+        # # Unique values
+        # # ie: (USDT, BTC, XRP) if trading with BTCUSDT & XRPUSDT
+        # self.split_symbols = set(
+        #     # TODO: Create a subclass of the symbol class for this
+        #     s
+        #     for symbol in self.symbols
+        #     for s in symbol
+        # )
 
         # This is the "known data"
-        self.latest_symbol_data = {symbol: None for symbol in self.symbols}
+        self.latest_symbol_data = {symbol: None for symbol in self.symbols.keys()}
 
         # Warmup period is how many the starting point for the data. Everything in the
         # warmup period can be used as data right from the start.
-        self.warmup_period = settings.DATA_WARMUP_PERIOD
+        self.warmup_period: int = settings.DATA_WARMUP_PERIOD
 
         self._parse_df()
-
-    def _split_symbol(self, symbol, source=None):
-        if source is None:
-            source, symbol = h.split_symbol(symbol)
-
-        base = self.symbol_info[symbol]["baseAsset"]
-        quote = self.symbol_info[symbol]["quoteAsset"]
-
-        return source, base, quote
 
     def _parse_df(self):
 
@@ -98,6 +72,14 @@ class HistoricDataHandler(DataHandler):
 
         for symbol in self.symbols.keys():
 
+            file_path = f"{settings.DATA_DIRECTORY}/{symbol}.csv"
+
+            if not os.path.exists(file_path):
+                logging.warning(
+                    f"Data file for symbol '{symbol}' not found: {file_path}"
+                )
+                continue
+
             # Two different intervals of interest
             # Each asset has both of these intervals
             # Trade Interval: how often the bot should trade
@@ -106,37 +88,51 @@ class HistoricDataHandler(DataHandler):
             # DataFrame
             # Sets the index column to 0 (dates)
             # Converts the index to pandas datetime
-            data = pd.read_csv(
-                "%s\\%s.csv" % (settings.DATA_DIRECTORY, str(symbol)),
-                index_col=0,
-                parse_dates=True,
-            )
+            try:
+                data = pd.read_csv(file_path, index_col=0, parse_dates=True)
+            except Exception as e:
+                logging.error(f"Failed to load data for symbol '{symbol}': {e}")
+                continue
+
+            if data.empty:
+                logging.warning(
+                    f"Data file for symbol '{symbol}' is empty: {file_path}"
+                )
+                continue
 
             parameters = self.symbols[symbol]
 
             # Convert evertthing to np.timedelta64
-            data_interval = parameters["Timeframe"]["Data Interval"]
-            trading_interval = parameters["Timeframe"]["Trading Interval"]
+            data_interval = parameters["Data Interval"]
+            trading_interval = parameters["Trading Interval"]
             if type(data_interval) is str:
                 data_interval = np.timedelta64(
                     data_interval[:-1], data_interval[-1]
                 ).astype(timedelta)
-                parameters["Timeframe"]["Data Interval"] = data_interval
+                parameters["Data Interval"] = data_interval
             if type(trading_interval) is str:
                 trading_interval = np.timedelta64(
                     trading_interval[:-1], trading_interval[-1]
                 ).astype(timedelta)
-                parameters["Timeframe"]["Trading Interval"] = trading_interval
+                parameters["Trading Interval"] = trading_interval
+
+            # Ensure necessary columns exist
+            required_columns = {"Open", "High", "Low", "Close", "Volume"}
+            if not required_columns.issubset(data.columns):
+                logging.error(
+                    f"Missing required columns in data for symbol '{symbol}': {file_path}"
+                )
+                continue
 
             # Convert to decimal for extra precision
             data[["Open", "High", "Low", "Close"]] = (
-                data[["Open", "High", "Low", "Close"]].astype(str).applymap(D)
+                data[["Open", "High", "Low", "Close"]].astype(str).map(D)  # type: ignore
             )
 
             # Resampling is very important since it makes sure that the
             # program only reveals the data we want it to reveal
             OHLC = (
-                data.resample(rule=data_interval)
+                data.resample(rule=data_interval)  # type: ignore
                 # This converts it back to a dataframe
                 # Each of the functions takes a particular price from the time period
                 # ie: Open get the first price in the time period
@@ -156,8 +152,8 @@ class HistoricDataHandler(DataHandler):
             )
 
             V = (
-                data.drop(columns=["Open", "High", "Low", "Close"]).resample(
-                    rule=data_interval
+                data.drop(columns=["Open", "High", "Low", "Close"]).resample(  # type: ignore
+                    rule=data_interval  # type: ignore
                 )
                 # This sums up the volume for the entire data_interval
                 .sum()
@@ -214,7 +210,7 @@ class HistoricDataHandler(DataHandler):
     def __iter__(self):
 
         for self.size in range(len(self.dates)):
-            bar = BarEvent(self.date)
+            bar = BarEvent(pd.Timestamp(self.date))
             #             sentiment = SentimentEvent(self.date)
 
             for symbol in self.symbols.keys():

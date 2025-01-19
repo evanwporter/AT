@@ -9,7 +9,7 @@ import time
 import numpy as np
 import pandas as pd
 
-import settings
+import settings as settings
 
 import helper as h
 

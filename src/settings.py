@@ -5,8 +5,6 @@ TODO
  * Documentation
 """
 
-import enums
-import symbols
 from decimal import Decimal as D
 
 """
@@ -17,22 +15,24 @@ There are three modes
 """
 MODE = "backtest"
 
-FEES = {enums.exchanges.BINANCE: D(0.001)}
+FEES = D(0.001)
+
+
+# ---------------------
+# | Symbol Parameters |
+# ---------------------
+DEFAULT = {"Data Interval": "1D", "Trading Interval": "1D"}
 
 SYMBOLS = {
-    # Exchange data
-    "Binance": [
-        # Symbols in exchange that you want to trade
-        # Symbols must have a similarily named csv file
-        "BTCUSDT",
-    ],
-    # "Twitter": [
-    #     "BTC",
-    # ]
+    # Symbols in exchange that you want to trade
+    # Symbols must have a similarily named csv file
+    "GOOG": DEFAULT,
+    "AAPL": DEFAULT,
+    "MSFT": DEFAULT,
 }
 
-DATA_INTERVAL: "1m"
-TRADING_INTERVAL: "1m"
+DATA_INTERVAL = "1m"
+TRADING_INTERVAL = "1m"
 
 # ----------------
 # | Data Handler |
@@ -40,13 +40,13 @@ TRADING_INTERVAL: "1m"
 # Warmup period is how many the starting point for the data. Everything in the
 # warmup period can be used as data right from the start.
 DATA_WARMUP_PERIOD = 500
-DATA_DIRECTORY = r"C:\Users\evanh\Projects\AT\Data"
+DATA_DIRECTORY = r"C:\Users\evanw\AT\Data"
 
 # ------------
 # | Strategy |
 # ------------
 
-# Strategy you want to use. Backtesting uses getattr to read the strategy 
+# Strategy you want to use. Backtesting uses getattr to read the strategy
 # provided that their is a equivalently named strategy in the strategy folder.
 STRATEGY = "UpDownTick"
 PARAMETERS = {"method": "TREND"}
@@ -58,9 +58,10 @@ TAKE_PROFITS = False
 STOP_LOSSES = False
 LEVERAGE_RATIO = 1.0
 # Percent of total equity
-CASH_BUFFER = .2
-WEIGHTING = 'long-only'
+CASH_BUFFER = 0.2
+WEIGHTING = "long-only"
 POSITION_SIZER = {"method": "Fixed Size", "size": ".1"}
+WEIGHTS = {symbol: 0.33 for symbol in SYMBOLS}
 
 # -------------
 # | Portfolio |

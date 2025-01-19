@@ -52,10 +52,10 @@ class Position:
     def update_position(
         self,
         direction,
-        quantity: D,
+        quantity: D | int | str,
         price,
         side,
-        commission: D = None,
+        commission: D | int | str = D("0.0"),
         slippage=None,
         date=None,
     ):

@@ -6,14 +6,14 @@ import helper as h
 import logging
 
 try:
-    import talib
+    import talib  # type: ignore
 except ImportError:
     # talib is a pain to install
     logging.warning("You should install talib.")
 
 import enums
 
-import settings
+import settings as settings
 
 from Broker.Fees import PercentFeeModel
 
@@ -63,7 +63,7 @@ class SimpleRiskHandler:
 
         try:
             self.weight_bounds = settings.WEIGHTS
-        except ValueError:  # If WEIGHTS isn't defined in settings
+        except ValueError | AttributeError:  # If WEIGHTS isn't defined in settings
             self.weight_bounds = {}
             logging.warning("You should define settings.WEIGHTS")
 
@@ -300,6 +300,7 @@ class SimpleRiskHandler:
         )
 
     def on_signal(self, price, symbol, direction):
+
         base = symbol.base
         quote = symbol.quote
 

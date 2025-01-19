@@ -14,7 +14,7 @@ import logging
 
 # import enums
 import helper as h
-import settings
+import settings as settings
 
 
 class SimulateExecutionHandler:
