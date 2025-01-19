@@ -1,2 +1,5 @@
 __pycache__/
 build/
+metrics.html
+*.pyd
+metrics.c
