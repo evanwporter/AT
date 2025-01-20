@@ -6,13 +6,8 @@ authors = [{ name = "Evan Porter", email = "evanwporter@gmail.com" }]
 license = { text = "MIT" }
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = [
-    "pandas (>=2.2.3,<3.0.0)",
-    "pandas-stubs (>=2.2.3.241126,<3.0.0.0)",
-    "numpy (>=2.2.2,<3.0.0)",
-]
-
+dependencies = ["pandas (>=2.2.3,<3.0.0)", "numpy (>=2.2.2,<3.0.0)"]
 
 [build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
+requires = ["poetry-core>=2.0.0,<3.0.0", "setuptools", "Cython"]
 build-backend = "poetry.core.masonry.api"
