@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 
 import settings as settings
@@ -18,8 +19,10 @@ class DataHandler(ABC):
 
     latest_symbol_data: dict[Symbol, pd.DataFrame | None]
     symbols: dict[Symbol, dict[str, str]]
-    dates: pd.Index
+    dates: npt.NDArray[np.datetime64]
     size: int
+    trade_data: dict[Symbol, npt.NDArray[np.bool_]]
+    symbol_data: dict[Symbol, pd.DataFrame]
 
     def __init__(self):
         self.symbols = settings.SYMBOLS
@@ -30,12 +33,20 @@ class DataHandler(ABC):
         columns: str | list[str] = "Close",
         N: int = -1,
         dtype=None,
+    ) -> (
+        None
+        | pd.Series
+        | pd.DataFrame
+        | np.ndarray
+        | list[np.ndarray]
+        | list[pd.Series]
+        | int
     ):
 
         if not isinstance(symbol, Symbol):
             raise TypeError("%s must be type Symbol" % symbol)
 
-        data_interval = self.symbols[symbol]["Data Interval"]
+        data_interval: str = self.symbols[symbol]["Data Interval"]
 
         if type(N) is dt.timedelta:
             if N < data_interval:
@@ -80,7 +91,7 @@ class DataHandler(ABC):
         pass
 
     @property
-    def date(self):
+    def date(self) -> np.datetime64:
         return self.dates[self.size - 1]
 
     def except_KI(self):

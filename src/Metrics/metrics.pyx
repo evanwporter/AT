@@ -24,6 +24,9 @@ cdef class Metrics:
 
         int number_trades
 
+    def __cinit__(self):
+        np.import_array() 
+
     def __init__(self, portfolio, dh):        
         self.holdings = (
             pd.DataFrame(

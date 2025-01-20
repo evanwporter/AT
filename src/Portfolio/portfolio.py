@@ -30,6 +30,9 @@ import logging
 class Portfolio:
     dh: DataHandler
     positions: dict[Symbol, Position]
+    holdings: deque[dict[str, D]]
+    closed_trades: deque
+    weights: dict[Symbol, int]
 
     def __init__(self, dh: DataHandler):
         self.dh = dh
@@ -38,11 +41,10 @@ class Portfolio:
         self.positions["USD"] = Position("USD")
         self.positions["USD"].quantity = D(settings.INITIAL_CASH)
 
-        # Double Ended Queue
         self.holdings = deque()
 
         self.trades: dict = defaultdict(deque)
-        self.closed_trades: deque = deque()
+        self.closed_trades = deque()
 
         self.weights = {symbol: 0 for symbol in self.dh.symbols.keys()}
         self.weights["USD"] = 100
@@ -51,7 +53,7 @@ class Portfolio:
 
         date = self.dh.date
 
-        holding = {}
+        holding: dict[str, D] = {}
         holding["USD Value"] = self.positions["USD"].update_value(D(1.0), date)
 
         for symbol in symbols:
@@ -95,11 +97,11 @@ class Portfolio:
 
     def on_fill(
         self,
-        id_,
-        symbol,  # Symbol
-        quantity,
-        direction,
-        price,
+        id_: str,
+        symbol: Symbol,  # Symbol
+        quantity: D,
+        direction: trade_type,
+        price: D,
         fill_type,
         slippage=None,
         commission=D("0.0"),

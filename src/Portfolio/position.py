@@ -31,7 +31,7 @@ class Position:
 
     market_value: D = field(init=False, default=D("0.0"))
 
-    def update_value(self, price, date=None):
+    def update_value(self, price, date=None) -> D:
 
         self.market_value = self.quantity * price  # .quantize(self.FIVEPLACES)
 
@@ -39,7 +39,7 @@ class Position:
         # self.unrealized_pnl = (self.market_value - self._avg_cpu * self.quantity)#.quantize(self.TWOPLACES)
         return self.market_value.quantize(D(places.EIGHT))
 
-    def __dict__(self):
+    def __dict__(self):  # type: ignore
         return {
             "Symbol": self.symbol,
             "Quantity": self.quantity,
@@ -51,10 +51,10 @@ class Position:
 
     def update_position(
         self,
-        direction,
+        direction: trade_type,
         quantity: D | int | str,
-        price,
-        side,
+        price: D,
+        side: asset_side,
         commission: D | int | str = D("0.0"),
         slippage=None,
         date=None,
@@ -73,7 +73,7 @@ class Position:
             qp = quantity * price
             self.total_commission += commission
 
-            if direction == "BUY" or direction == "LONG":
+            if direction == trade_type.LONG or direction == trade_type.BUY:
                 self.quantity -= qp
             else:
                 self.quantity += qp

@@ -30,7 +30,7 @@ def interval_to_ms(interval: str):
     return ms
 
 
-def generate_unique_id():
+def generate_unique_id() -> str:
     return str(uuid.uuid4())
 
 

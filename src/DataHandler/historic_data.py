@@ -32,7 +32,6 @@ class HistoricDataHandler(DataHandler):
         # -----------
         self.symbol_data = {}
         self.trade_data = {}
-        self.total_data = {}
 
         # ----------
         # | Public |
@@ -41,7 +40,7 @@ class HistoricDataHandler(DataHandler):
         # The guide tells you in which row to find Open, Close, High, Low, ect.
         # Also it has information on the intervals
         # This information is pulled from the symbols file in the main package.
-        self.symbols: dict[Symbol, dict[str, str]] = settings.SYMBOLS
+        self.symbols = settings.SYMBOLS
 
         logging.info("Trading %s." % self.symbols)
 
@@ -66,9 +65,9 @@ class HistoricDataHandler(DataHandler):
     def _parse_df(self):
 
         # self.dates is the master the compilation of all of the trades intervals.
-        self.dates = pd.Index([])
+        self.dates = np.array([], dtype="datetime64[ns]")
 
-        trading_data = {}
+        trading_data: dict[Symbol, pd.DataFrame] = {}
 
         for symbol in self.symbols.keys():
 
@@ -167,7 +166,11 @@ class HistoricDataHandler(DataHandler):
             trading_data[symbol] = OHLCV.asfreq(trading_interval)
 
             # Creates an index of all the trading intervals
-            self.dates = self.dates.union(trading_data[symbol].index)
+            self.dates = np.sort(
+                np.unique(
+                    np.concatenate([self.dates, trading_data[symbol].index.to_numpy()])
+                )
+            )
 
         # Must be done after self.dates is full formed
         for symbol in self.symbols.keys():
